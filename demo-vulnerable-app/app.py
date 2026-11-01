@@ -1,20 +1,21 @@
-"""Shieldgate demo app -- INTENTIONALLY VULNERABLE (demo PR, commit 1). Never deploy."""
-import hashlib
+"""Shieldgate demo app -- demo PR, commit 2: every Shieldgate finding from commit 1 fixed."""
+import json
 import os
-import pickle
 import sqlite3
 import subprocess
 
 import jwt
 import requests
 import yaml
-from flask import Flask, jsonify, redirect, request
+from flask import Flask, abort, jsonify, redirect, request, url_for
+from werkzeug.security import generate_password_hash
 
 app = Flask(__name__)
 DB = os.environ.get("NOTES_DB", "notes.db")
-JWT_SECRET = "notes-demo-signing-key"
-# Fake credential planted for the demo; it is not a real key.
-PAYMENTS_API_KEY = "q8Zt3VbN6mKp2XwR9sLd4HfJ7cYg"
+JWT_SECRET = os.environ["JWT_SECRET"]
+PAYMENTS_API_KEY = os.environ.get("PAYMENTS_API_KEY", "")
+PREVIEW_PAGES = {"docs": "https://docs.example.com/", "status": "https://status.example.com/"}
+EXPORT_FORMATS = {"csv", "json", "html"}
 
 
 def db():
@@ -24,38 +25,44 @@ def db():
 @app.get("/notes")
 def list_notes():
     owner = request.args.get("owner", "")
-    rows = db().execute("SELECT id, body FROM notes WHERE owner = '" + owner + "'").fetchall()
+    rows = db().execute("SELECT id, body FROM notes WHERE owner = ?", (owner,)).fetchall()
     return jsonify([{"id": r[0], "body": r[1]} for r in rows])
 
 
 @app.post("/login")
 def login():
-    pw_hash = hashlib.md5(request.form["password"].encode()).hexdigest()
+    pw_hash = generate_password_hash(request.form["password"])
     token = jwt.encode({"sub": request.form["user"], "pw": pw_hash}, JWT_SECRET, algorithm="HS256")
-    return redirect(request.args.get("next", "/") + "?t=" + token)
+    return redirect(url_for("list_notes", t=token))
 
 
 @app.get("/export")
 def export():
     fmt = request.args.get("fmt", "csv")
-    return subprocess.check_output(f"sqlite3 -{fmt} {DB} 'select * from notes'", shell=True)
+    if fmt not in EXPORT_FORMATS:
+        abort(400)
+    return subprocess.check_output(["sqlite3", f"-{fmt}", DB, "select * from notes"])
 
 
 @app.post("/import")
 def import_notes():
-    notes = pickle.loads(request.data)
+    notes = json.loads(request.data)
     return jsonify(count=len(notes))
 
 
 @app.post("/import-yaml")
 def import_yaml():
-    return jsonify(yaml.load(request.data))
+    return jsonify(yaml.safe_load(request.data))
 
 
 @app.get("/preview")
 def preview():
-    return requests.get(request.args["url"], timeout=5, verify=False).text
+    # callers pick a page by key; the server only ever fetches URLs it owns
+    page = request.args.get("page", "")
+    if page not in PREVIEW_PAGES:
+        abort(400)
+    return requests.get(PREVIEW_PAGES[page], timeout=5, allow_redirects=False).text
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
+    app.run(debug=os.environ.get("FLASK_DEBUG") == "1")
