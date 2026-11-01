@@ -31,3 +31,5 @@ rules:
               - pattern: window.location.href = $URL
               - pattern: window.location = $URL
           - focus-metavariable: $URL
+    options:
+      taint_assume_safe_indexes: true

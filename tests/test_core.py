@@ -115,6 +115,8 @@ class TestDedupe:
                  installed_version="0.12", line=0, path="requirements.txt")
         assert len(dedupe([mk(**d), mk(**d)])) == 1
         assert len(dedupe([mk(**d), mk(**{**d, "rule_id": "CVE-2"})])) == 2
+        # same vulnerable package in two manifests = two locations to fix
+        assert len(dedupe([mk(**d), mk(**{**d, "path": "sub/requirements.txt"})])) == 2
 
     def test_sorted_by_severity(self):
         out = dedupe([mk(line=1, severity=Severity.LOW), mk(line=2, severity=Severity.CRITICAL)])
@@ -228,8 +230,17 @@ class TestComment:
     def test_pipes_escaped_and_dependency_line(self):
         f = mk(title="a|b", scanner="osv", category="dependency", package="flask",
                installed_version="0.12", fixed_version="2.2.5", line=0, path="requirements.txt")
-        body = render_comment([f])
-        assert "a\\|b" in body and "`flask@0.12` → fixed in `2.2.5`" in body
+        g = mk(title="t", scanner="osv", category="dependency", package="flask", rule_id="CVE-2",
+               installed_version="0.12", fixed_version="1.0", line=0, path="requirements.txt")
+        body = render_comment([f, g, mk(title="a|b")])
+        assert "a\\|b" in body
+        assert "**`flask@0.12`** — 2 known vulnerabilities" in body
+        assert "upgrade to **2.2.5** or later" in body
+
+    def test_min_safe_version(self):
+        from shieldgate.report import min_safe_version
+        fs = [mk(fixed_version="2.10.0"), mk(fixed_version="2.2.5, 2.3.2"), mk(fixed_version="")]
+        assert min_safe_version(fs) == "2.10.0"
 
     def test_truncates_long_lists(self):
         fs = [mk(line=i, snippet=str(i)) for i in range(150)]

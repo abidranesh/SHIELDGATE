@@ -12,28 +12,26 @@ rules:
       owasp: ["A03:2021 - Injection"]
       fix: Use parameterized queries, e.g. cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,)), or the ORM's query builder.
       confidence: HIGH
-      references: [https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html]
+      references: ["https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html"]
     patterns:
       - pattern-either:
-          - pattern: $CUR.$EXEC(f"...", ...)
-          - pattern: $CUR.$EXEC("..." + $X, ...)
-          - pattern: $CUR.$EXEC("..." % $X, ...)
-          - pattern: $CUR.$EXEC("...".format(...), ...)
+          - pattern: $CUR.$EXEC($SQL, ...)
           - patterns:
-              - pattern-either:
-                  - pattern-inside: |
-                      $Q = f"..."
-                      ...
-                  - pattern-inside: |
-                      $Q = "..." + $X
-                      ...
-                  - pattern-inside: |
-                      $Q = "..." % $X
-                      ...
-                  - pattern-inside: |
-                      $Q = "...".format(...)
-                      ...
+              - pattern-inside: |
+                  $Q = $SQL
+                  ...
               - pattern: $CUR.$EXEC($Q, ...)
       - metavariable-regex:
           metavariable: $EXEC
           regex: ^(execute|executemany|executescript|raw)$
+      # the query (or the variable holding it) is built from a string literal plus something dynamic
+      - metavariable-pattern:
+          metavariable: $SQL
+          pattern-either:
+            - pattern: '"..." + $X'
+            - pattern: '$X + "..."'
+            - pattern: '"..." % $X'
+            - pattern: '"...".format(...)'
+            - patterns:
+                - pattern: f"..."
+                - pattern-regex: \{

@@ -12,7 +12,7 @@ rules:
       owasp: ["A03:2021 - Injection"]
       fix: Pass an argument list and drop shell=True, e.g. subprocess.run(["ping", "-c", "1", host]); validate inputs with an allowlist.
       confidence: HIGH
-      references: [https://docs.python.org/3/library/subprocess.html#security-considerations]
+      references: ["https://docs.python.org/3/library/subprocess.html#security-considerations"]
     patterns:
       - pattern-either:
           - pattern: subprocess.$F($CMD, ..., shell=True, ...)

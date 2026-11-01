@@ -41,8 +41,8 @@ def parse(data: list | None, target: str | Path) -> list[Finding]:
                 path=rel(r.get("File", ""), target),
                 line=r.get("StartLine", 0),
                 end_line=r.get("EndLine", 0),
-                message=f"Possible {r.get('Description') or rule} committed to the repository "
-                        f"(value: `{masked}`, entropy {entropy:.2f}).",
+                message=f"{(r.get('Description') or rule).rstrip('.')}. "
+                        f"Masked value: `{masked}` (entropy {entropy:.2f}).",
                 cwe=["CWE-798"],
                 owasp=["A07:2021 - Identification and Authentication Failures"],
                 fix="Revoke/rotate the credential now, remove it from the code (and git history), "

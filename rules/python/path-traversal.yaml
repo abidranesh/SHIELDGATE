@@ -40,3 +40,5 @@ rules:
           - pattern: shutil.rmtree($P, ...)
           - pattern: pathlib.Path($P, ...)
           - pattern: Path($P, ...)
+    options:
+      taint_assume_safe_indexes: true

@@ -30,3 +30,5 @@ rules:
               - pattern: urllib.request.urlopen($URL, ...)
               - pattern: urlopen($URL, ...)
           - focus-metavariable: $URL
+    options:
+      taint_assume_safe_indexes: true

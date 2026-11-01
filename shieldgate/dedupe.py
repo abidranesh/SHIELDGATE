@@ -10,7 +10,7 @@ _FAMILY = {"secret": "secret", "sast": "code", "iac": "iac", "dependency": "dep"
 
 def _overlap_key(f: Finding) -> tuple:
     if f.category == "dependency":
-        return ("dep", f.package.lower(), f.installed_version, f.rule_id)
+        return ("dep", f.path, f.package.lower(), f.installed_version, f.rule_id)
     # Secrets found by both Semgrep (hardcoded-jwt-secret) and Gitleaks collapse on file+line.
     if f.category == "secret" or "hardcoded" in f.rule_id:
         return ("secret", f.path, f.line)

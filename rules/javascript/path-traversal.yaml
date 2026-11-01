@@ -34,3 +34,4 @@ rules:
           - focus-metavariable: $P
     options:
       taint_assume_safe_functions: false
+      taint_assume_safe_indexes: true

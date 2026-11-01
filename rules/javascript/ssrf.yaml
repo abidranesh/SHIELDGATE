@@ -35,3 +35,5 @@ rules:
               - pattern: request($URL, ...)
               - pattern: needle.get($URL, ...)
           - focus-metavariable: $URL
+    options:
+      taint_assume_safe_indexes: true

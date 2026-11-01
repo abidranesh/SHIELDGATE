@@ -31,3 +31,5 @@ rules:
           - pattern: flask.redirect(...)
           - pattern: HttpResponseRedirect(...)
           - pattern: django.shortcuts.redirect(...)
+    options:
+      taint_assume_safe_indexes: true

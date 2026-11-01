@@ -32,7 +32,8 @@ def log(msg: str) -> None:
 
 def tool_version(name: str) -> str:
     try:
-        out = subprocess.run(VERSION_CMDS[name], capture_output=True, text=True, timeout=60).stdout
+        env = {**os.environ, "SEMGREP_ENABLE_VERSION_CHECK": "0"}
+        out = subprocess.run(VERSION_CMDS[name], capture_output=True, text=True, timeout=60, env=env).stdout
         first = out.strip().splitlines()[0] if out.strip() else "?"
         return first.split()[-1]
     except Exception:  # noqa: BLE001 - version is cosmetic
@@ -108,7 +109,7 @@ def cmd_scan(args) -> int:
     scope, base = resolve_scope(args)
 
     raw, used = run_scanners(target, names, args.rules, args.strict, args.exclude, args.extra_rules)
-    findings = [f for f in dedupe(_repo_relative(raw, target)) if not excluded(f.path, args.exclude)]
+    findings = dedupe([f for f in _repo_relative(raw, target) if not excluded(f.path, args.exclude)])
     if scope == "diff":
         changed = diffscope.changed_lines(base, "HEAD", cwd=target)
         findings = diffscope.filter_to_diff(findings, changed)

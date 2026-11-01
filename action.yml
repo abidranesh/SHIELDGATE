@@ -59,7 +59,7 @@ runs:
     - name: Install pinned scanners
       shell: bash
       env:
-        SEMGREP_VERSION: "1.95.0"
+        SEMGREP_VERSION: "1.183.0"
         CHECKOV_VERSION: "3.2.300"
         GITLEAKS_VERSION: "8.21.2"
         GITLEAKS_SHA256: "5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba"
@@ -70,8 +70,14 @@ runs:
         set -euo pipefail
         BIN="$RUNNER_TEMP/shieldgate-bin"; mkdir -p "$BIN"; echo "$BIN" >> "$GITHUB_PATH"
         python -m pip install --quiet --disable-pip-version-check "$GITHUB_ACTION_PATH"
-        [[ "$SCANNERS" == *semgrep* ]] && python -m pip install --quiet --disable-pip-version-check "semgrep==$SEMGREP_VERSION"
-        [[ "$SCANNERS" == *checkov* ]] && python -m pip install --quiet --disable-pip-version-check "checkov==$CHECKOV_VERSION"
+        # semgrep and checkov get isolated venvs so their pinned dependencies cannot conflict
+        venv_tool() {  # $1 = package==version, $2 = executable
+          python -m venv "$RUNNER_TEMP/venv-$2"
+          "$RUNNER_TEMP/venv-$2/bin/pip" install --quiet --disable-pip-version-check "$1"
+          ln -sf "$RUNNER_TEMP/venv-$2/bin/$2" "$BIN/$2"
+        }
+        if [[ "$SCANNERS" == *semgrep* ]]; then venv_tool "semgrep==$SEMGREP_VERSION" semgrep; fi
+        if [[ "$SCANNERS" == *checkov* ]]; then venv_tool "checkov==$CHECKOV_VERSION" checkov; fi
         if [[ "$SCANNERS" == *gitleaks* ]]; then
           curl -sSfL -o "$RUNNER_TEMP/gitleaks.tgz" \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"

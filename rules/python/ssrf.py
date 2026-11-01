@@ -22,3 +22,13 @@ def static_fetch():
     page = request.args.get("page")
     # ok: shieldgate.python.ssrf-requests
     return requests.get("https://api.example.com/items", params={"page": page}).text
+
+PAGES = {"docs": "https://docs.example.com/"}
+
+@app.route("/allowlisted")
+def allowlisted():
+    page = request.args.get("page")
+    if page not in PAGES:
+        return "bad", 400
+    # ok: shieldgate.python.ssrf-requests
+    return requests.get(PAGES[page], timeout=5).text
