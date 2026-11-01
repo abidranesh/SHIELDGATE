@@ -1,0 +1,43 @@
+rules:
+  - id: shieldgate.python.pickle-deserialization
+    languages: [python]
+    severity: ERROR
+    message: >-
+      pickle/marshal/dill deserialization executes arbitrary code embedded in the data. Never
+      unpickle data that could come from an untrusted source.
+    metadata:
+      shortDescription: Insecure deserialization (pickle)
+      severity: HIGH
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp: ["A08:2021 - Software and Data Integrity Failures"]
+      fix: Use a data-only format such as json; if pickle is unavoidable, sign the payload with hmac and verify before loading.
+      confidence: MEDIUM
+    pattern-either:
+      - pattern: pickle.loads(...)
+      - pattern: pickle.load(...)
+      - pattern: pickle.Unpickler(...)
+      - pattern: cPickle.loads(...)
+      - pattern: _pickle.loads(...)
+      - pattern: dill.loads(...)
+      - pattern: marshal.loads(...)
+      - pattern: shelve.open(...)
+  - id: shieldgate.python.unsafe-yaml-load
+    languages: [python]
+    severity: ERROR
+    message: >-
+      yaml.load() without SafeLoader (or yaml.unsafe_load) can construct arbitrary Python objects,
+      leading to remote code execution on attacker-controlled YAML.
+    metadata:
+      shortDescription: Insecure deserialization (yaml.load)
+      severity: HIGH
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp: ["A08:2021 - Software and Data Integrity Failures"]
+      fix: Use yaml.safe_load(data) or yaml.load(data, Loader=yaml.SafeLoader).
+      confidence: HIGH
+    pattern-either:
+      - pattern: yaml.unsafe_load(...)
+      - pattern: yaml.load(..., Loader=yaml.Loader, ...)
+      - pattern: yaml.load(..., Loader=yaml.UnsafeLoader, ...)
+      - pattern: yaml.load(..., Loader=yaml.FullLoader, ...)
+      - patterns:
+          - pattern: yaml.load($D)

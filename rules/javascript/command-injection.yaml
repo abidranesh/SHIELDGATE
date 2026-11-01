@@ -1,0 +1,34 @@
+rules:
+  - id: shieldgate.js.child-process-exec-injection
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      child_process exec/execSync runs its argument through a shell. Request data reaches the command,
+      so an attacker can append "; rm -rf /" style commands (command injection).
+    metadata:
+      shortDescription: Command injection via child_process.exec
+      severity: CRITICAL
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command"]
+      owasp: ["A03:2021 - Injection"]
+      fix: Use execFile/spawn with an argument array and no shell (spawn("ping", ["-c", "1", host])), and validate input against an allowlist.
+      confidence: HIGH
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQ.query
+          - pattern: $REQ.body
+          - pattern: $REQ.params
+          - pattern: $REQ.cookies
+          - pattern: $REQ.headers
+          - pattern: $REQ.query.$X
+          - pattern: $REQ.body.$X
+          - pattern: $REQ.params.$X
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $CP.exec($CMD, ...)
+              - pattern: $CP.execSync($CMD, ...)
+              - pattern: exec($CMD, ...)
+              - pattern: execSync($CMD, ...)
+              - pattern: '$CP.spawn($CMD, ..., {..., shell: true, ...})'
+          - focus-metavariable: $CMD

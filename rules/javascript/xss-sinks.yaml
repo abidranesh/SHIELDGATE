@@ -1,0 +1,48 @@
+rules:
+  - id: shieldgate.js.xss-innerhtml
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      A non-constant value is written to innerHTML/outerHTML/document.write. If it contains user input,
+      attacker-supplied HTML/JS executes in the victim's browser (DOM XSS).
+    metadata:
+      shortDescription: DOM XSS sink (innerHTML / document.write)
+      severity: MEDIUM
+      cwe: ["CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"]
+      owasp: ["A03:2021 - Injection"]
+      fix: Use textContent / innerText for text, build nodes with createElement, or sanitize with DOMPurify.sanitize() before assigning HTML.
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: $EL.innerHTML = $V
+          - pattern: $EL.outerHTML = $V
+          - pattern: $EL.innerHTML += $V
+          - pattern: document.write($V)
+          - pattern: document.writeln($V)
+          - pattern: $EL.insertAdjacentHTML($POS, $V)
+      - pattern-not: $EL.innerHTML = "..."
+      - pattern-not: $EL.outerHTML = "..."
+      - pattern-not: $EL.innerHTML = `...`
+      - pattern-not: document.write("...")
+      - pattern-not: $EL.insertAdjacentHTML($POS, "...")
+      - pattern-not: $EL.innerHTML = DOMPurify.sanitize(...)
+      - pattern-not: $EL.innerHTML = $X.sanitize(...)
+  - id: shieldgate.js.xss-dangerouslysetinnerhtml
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      dangerouslySetInnerHTML renders a non-constant value as raw HTML, bypassing React's escaping (XSS).
+    metadata:
+      shortDescription: React dangerouslySetInnerHTML with dynamic value
+      severity: MEDIUM
+      cwe: ["CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"]
+      owasp: ["A03:2021 - Injection"]
+      fix: Render the value as children ({value}) so React escapes it, or sanitize with DOMPurify.sanitize(html) first.
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: '<$EL dangerouslySetInnerHTML={{__html: $V}} />'
+          - pattern: "{dangerouslySetInnerHTML: {__html: $V}}"
+      - pattern-not: '<$EL dangerouslySetInnerHTML={{__html: "..."}} />'
+      - pattern-not: '<$EL dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(...)}} />'
+      - pattern-not: '<$EL dangerouslySetInnerHTML={{__html: $S.sanitize(...)}} />'

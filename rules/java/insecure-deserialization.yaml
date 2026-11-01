@@ -1,0 +1,24 @@
+rules:
+  - id: shieldgate.java.object-deserialization
+    languages: [java]
+    severity: ERROR
+    message: >-
+      Java native deserialization (ObjectInputStream.readObject / XMLDecoder) of untrusted data enables
+      gadget-chain remote code execution.
+    metadata:
+      shortDescription: Insecure Java deserialization
+      severity: HIGH
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp: ["A08:2021 - Software and Data Integrity Failures"]
+      fix: Use JSON (Jackson without default typing). If native serialization is unavoidable, set an ObjectInputFilter allowlist (ois.setObjectInputFilter(...)).
+      confidence: MEDIUM
+    pattern-either:
+      - patterns:
+          - pattern: (ObjectInputStream $O).readObject()
+          - pattern-not-inside: |
+              $O.setObjectInputFilter(...);
+              ...
+      - pattern: new XMLDecoder(...).readObject()
+      - pattern: (XMLDecoder $D).readObject()
+      - pattern: (com.fasterxml.jackson.databind.ObjectMapper $M).enableDefaultTyping(...)
+      - pattern: new XStream().fromXML(...)

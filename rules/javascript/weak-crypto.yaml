@@ -1,0 +1,50 @@
+rules:
+  - id: shieldgate.js.weak-password-hash
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      A password-like value is hashed with MD5/SHA1. Fast unsalted digests are trivially brute-forced.
+    metadata:
+      shortDescription: Weak password hashing (MD5/SHA1)
+      severity: HIGH
+      cwe: ["CWE-916: Use of Password Hash With Insufficient Computational Effort", "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 - Cryptographic Failures"]
+      fix: Use bcrypt/argon2 (e.g. await bcrypt.hash(password, 12)) or crypto.scrypt with a random salt.
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: $C.createHash("$ALG").update($PW, ...)
+          - pattern: $MD5($PW)
+      - metavariable-regex:
+          metavariable: $PW
+          regex: (?i).*(passw|pwd|secret).*
+      - pattern-either:
+          - patterns:
+              - pattern: $C.createHash("$ALG").update(...)
+              - metavariable-regex:
+                  metavariable: $ALG
+                  regex: (?i)^(md5|sha1|md4)$
+          - patterns:
+              - pattern: $MD5(...)
+              - metavariable-regex:
+                  metavariable: $MD5
+                  regex: ^(md5|sha1)$
+  - id: shieldgate.js.ecb-or-des-cipher
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: A cipher in ECB mode or a broken algorithm (DES/RC4) is used; patterns in the plaintext leak.
+    metadata:
+      shortDescription: Insecure cipher (ECB / DES / RC4)
+      severity: MEDIUM
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 - Cryptographic Failures"]
+      fix: Use crypto.createCipheriv("aes-256-gcm", key, iv) with a random 12-byte IV and verify the auth tag.
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: $C.createCipheriv("$ALG", ...)
+          - pattern: $C.createCipher("$ALG", ...)
+          - pattern: $C.createDecipheriv("$ALG", ...)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i).*(ecb|^des|rc4|^bf).*

@@ -1,0 +1,37 @@
+rules:
+  - id: shieldgate.js.ssrf
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      An outbound HTTP request uses a URL from the incoming request, letting attackers reach internal
+      services or cloud metadata endpoints (SSRF).
+    metadata:
+      shortDescription: Server-side request forgery (SSRF)
+      severity: HIGH
+      cwe: ["CWE-918: Server-Side Request Forgery (SSRF)"]
+      owasp: ["A10:2021 - Server-Side Request Forgery (SSRF)"]
+      fix: Parse the URL with new URL(), allowlist scheme + host, block private/link-local IPs after DNS resolution, and disable redirects.
+      confidence: MEDIUM
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQ.query
+          - pattern: $REQ.body
+          - pattern: $REQ.params
+          - pattern: $REQ.cookies
+          - pattern: $REQ.headers
+          - pattern: $REQ.query.$X
+          - pattern: $REQ.body.$X
+          - pattern: $REQ.params.$X
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: fetch($URL, ...)
+              - pattern: axios.$M($URL, ...)
+              - pattern: axios($URL, ...)
+              - pattern: got($URL, ...)
+              - pattern: http.get($URL, ...)
+              - pattern: https.get($URL, ...)
+              - pattern: request($URL, ...)
+              - pattern: needle.get($URL, ...)
+          - focus-metavariable: $URL

@@ -1,0 +1,34 @@
+rules:
+  - id: shieldgate.java.runtime-exec-injection
+    languages: [java]
+    severity: ERROR
+    message: >-
+      Runtime.exec/ProcessBuilder receives a command built from non-constant data. Through a shell
+      ("sh -c") or argument injection an attacker can run arbitrary commands.
+    metadata:
+      shortDescription: Command injection via Runtime.exec / ProcessBuilder
+      severity: HIGH
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command"]
+      owasp: ["A03:2021 - Injection"]
+      fix: Pass a fixed executable and separate arguments (new ProcessBuilder("ping", "-c", "1", host)), never "sh -c", and validate inputs against an allowlist.
+      confidence: MEDIUM
+    pattern-either:
+      - pattern: Runtime.getRuntime().exec("..." + $X, ...)
+      - pattern: Runtime.getRuntime().exec(String.format(...), ...)
+      - patterns:
+          - pattern: Runtime.getRuntime().exec(new String[]{"$SH", "$C", $X}, ...)
+          - metavariable-regex:
+              metavariable: $SH
+              regex: .*(sh|bash|cmd(\.exe)?)$
+          - pattern-not: Runtime.getRuntime().exec(new String[]{"...", "...", "..."}, ...)
+      - patterns:
+          - pattern: new ProcessBuilder("$SH", "$C", $X, ...)
+          - metavariable-regex:
+              metavariable: $SH
+              regex: .*(sh|bash|cmd(\.exe)?)$
+          - pattern-not: new ProcessBuilder("...", "...", "...")
+      - patterns:
+          - pattern-inside: |
+              String $CMD = "..." + $X;
+              ...
+          - pattern: Runtime.getRuntime().exec($CMD, ...)

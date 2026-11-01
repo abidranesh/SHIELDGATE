@@ -1,0 +1,43 @@
+rules:
+  - id: shieldgate.java.open-redirect
+    languages: [java]
+    severity: WARNING
+    message: sendRedirect / "redirect:" uses a URL from the request, enabling phishing via your domain (open redirect).
+    metadata:
+      shortDescription: Open redirect
+      severity: MEDIUM
+      cwe: ["CWE-601: URL Redirection to Untrusted Site ('Open Redirect')"]
+      owasp: ["A01:2021 - Broken Access Control"]
+      fix: Redirect only to relative paths or an allowlisted host; map user-supplied keys to fixed URLs.
+      confidence: MEDIUM
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: (HttpServletRequest $R).getParameter(...)
+          - pattern: (HttpServletRequest $R).getHeader(...)
+          - pattern: (HttpServletRequest $R).getQueryString()
+          - pattern: (HttpServletRequest $R).getCookies()
+          - pattern: (javax.servlet.http.HttpServletRequest $R).getParameter(...)
+          - patterns:
+              - pattern-inside: |
+                  $RET $M(..., @$ANNO(...) $T $P, ...) { ... }
+              - pattern: $P
+              - metavariable-regex:
+                  metavariable: $ANNO
+                  regex: ^(RequestParam|PathVariable|RequestHeader|RequestBody|QueryParam|PathParam)$
+          - patterns:
+              - pattern-inside: |
+                  $RET $M(..., @$ANNO $T $P, ...) { ... }
+              - pattern: $P
+              - metavariable-regex:
+                  metavariable: $ANNO
+                  regex: ^(RequestParam|PathVariable|RequestHeader|RequestBody|QueryParam|PathParam)$
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: (HttpServletResponse $RESP).sendRedirect($URL)
+              - pattern: (HttpServletResponse $RESP).setHeader("Location", $URL)
+              - pattern: new RedirectView($URL, ...)
+              - pattern: |
+                  return "redirect:" + $URL;
+          - focus-metavariable: $URL

@@ -1,0 +1,41 @@
+rules:
+  - id: shieldgate.python.subprocess-shell-true
+    languages: [python]
+    severity: ERROR
+    message: >-
+      subprocess is invoked with shell=True and a non-constant command. Any attacker-influenced
+      part of the command string is interpreted by the shell (command injection).
+    metadata:
+      shortDescription: Command injection via subprocess shell=True
+      severity: HIGH
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command"]
+      owasp: ["A03:2021 - Injection"]
+      fix: Pass an argument list and drop shell=True, e.g. subprocess.run(["ping", "-c", "1", host]); validate inputs with an allowlist.
+      confidence: HIGH
+      references: [https://docs.python.org/3/library/subprocess.html#security-considerations]
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.$F($CMD, ..., shell=True, ...)
+          - pattern: subprocess.$F(args=$CMD, ..., shell=True, ...)
+      - metavariable-regex:
+          metavariable: $F
+          regex: ^(run|call|check_call|check_output|Popen|getoutput|getstatusoutput)$
+      - pattern-not: subprocess.$F("...", ...)
+      - pattern-not: subprocess.$F(["...", ...], ...)
+  - id: shieldgate.python.os-system-injection
+    languages: [python]
+    severity: ERROR
+    message: os.system/os.popen runs a shell command built from a non-constant value (command injection).
+    metadata:
+      shortDescription: Command injection via os.system/os.popen
+      severity: HIGH
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command"]
+      owasp: ["A03:2021 - Injection"]
+      fix: Replace with subprocess.run([...]) using an argument list (no shell), and validate inputs.
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: os.system($CMD)
+          - pattern: os.popen($CMD, ...)
+      - pattern-not: os.system("...")
+      - pattern-not: os.popen("...", ...)
