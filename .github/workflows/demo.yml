@@ -1,0 +1,25 @@
+# Runs Shieldgate on the intentionally vulnerable demo app whenever a PR touches it.
+# See demo-vulnerable-app/README.md for how to open the demo PR.
+name: Shieldgate demo
+on:
+  pull_request:
+    paths: ["demo-vulnerable-app/**"]
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./
+        with:
+          path: demo-vulnerable-app
+          fail-on: high
+          exclude: |
+            demo-vulnerable-app/pr-steps/*

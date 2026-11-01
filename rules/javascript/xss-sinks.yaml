@@ -1,0 +1,69 @@
+rules:
+  - id: shieldgate.js.xss-innerhtml
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Attacker-controllable browser input (URL, hash, referrer, postMessage data, storage) flows into
+      innerHTML/outerHTML/insertAdjacentHTML/document.write, so injected markup executes (DOM XSS).
+    metadata:
+      shortDescription: DOM XSS (URL/message data into innerHTML)
+      severity: MEDIUM
+      cwe: ["CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"]
+      owasp: ["A03:2021 - Injection"]
+      fix: Use textContent / innerText for text, build nodes with createElement, or sanitize with DOMPurify.sanitize() before assigning HTML.
+      confidence: MEDIUM
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: location.$P
+          - pattern: window.location.$P
+          - pattern: document.location.$P
+          - pattern: document.URL
+          - pattern: document.documentURI
+          - pattern: document.referrer
+          - pattern: window.name
+          - pattern: new URLSearchParams(...)
+          - pattern: localStorage.getItem(...)
+          - pattern: sessionStorage.getItem(...)
+          - patterns:
+              - pattern-inside: |
+                  $W.addEventListener("message", ($E) => { ... })
+              - pattern: $E.data
+          - patterns:
+              - pattern-inside: |
+                  $W.addEventListener("message", function ($E) { ... })
+              - pattern: $E.data
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: DOMPurify.sanitize(...)
+          - pattern: $X.sanitize(...)
+          - pattern: encodeURIComponent(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $EL.innerHTML = $V
+              - pattern: $EL.outerHTML = $V
+              - pattern: $EL.innerHTML += $V
+              - pattern: document.write($V)
+              - pattern: document.writeln($V)
+              - pattern: $EL.insertAdjacentHTML($POS, $V)
+          - focus-metavariable: $V
+  - id: shieldgate.js.xss-dangerouslysetinnerhtml
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      dangerouslySetInnerHTML renders a non-constant value as raw HTML, bypassing React's escaping (XSS).
+    metadata:
+      shortDescription: React dangerouslySetInnerHTML with dynamic value
+      severity: MEDIUM
+      cwe: ["CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"]
+      owasp: ["A03:2021 - Injection"]
+      fix: Render the value as children ({value}) so React escapes it, or sanitize with DOMPurify.sanitize(html) first.
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: '<$EL dangerouslySetInnerHTML={{__html: $V}} />'
+          - pattern: "{dangerouslySetInnerHTML: {__html: $V}}"
+      - pattern-not: '<$EL dangerouslySetInnerHTML={{__html: "..."}} />'
+      - pattern-not: '<$EL dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(...)}} />'
+      - pattern-not: '<$EL dangerouslySetInnerHTML={{__html: $S.sanitize(...)}} />'

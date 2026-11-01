@@ -1,0 +1,44 @@
+rules:
+  - id: shieldgate.python.path-traversal
+    languages: [python]
+    severity: ERROR
+    message: >-
+      A file path built from HTTP request data reaches a filesystem API. Input such as
+      "../../etc/passwd" lets an attacker read or write files outside the intended directory.
+    metadata:
+      shortDescription: Path traversal from request data
+      severity: HIGH
+      cwe: ["CWE-22: Improper Limitation of a Pathname to a Restricted Directory"]
+      owasp: ["A01:2021 - Broken Access Control"]
+      fix: Use werkzeug.utils.secure_filename / flask.send_from_directory, or resolve the path and verify it stays under the base directory (Path(base, name).resolve().is_relative_to(base)).
+      confidence: MEDIUM
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: flask.request.$A
+          - pattern: request.args
+          - pattern: request.form
+          - pattern: request.values
+          - pattern: request.files
+          - pattern: request.GET
+          - pattern: request.POST
+          - pattern: request.query_params
+          - pattern: request.path_params
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: werkzeug.utils.secure_filename(...)
+          - pattern: secure_filename(...)
+          - pattern: os.path.basename(...)
+    pattern-sinks:
+      - pattern-either:
+          - pattern: open($P, ...)
+          - pattern: io.open($P, ...)
+          - pattern: flask.send_file($P, ...)
+          - pattern: send_file($P, ...)
+          - pattern: os.remove($P)
+          - pattern: os.unlink($P)
+          - pattern: shutil.rmtree($P, ...)
+          - pattern: pathlib.Path($P, ...)
+          - pattern: Path($P, ...)
+    options:
+      taint_assume_safe_indexes: true

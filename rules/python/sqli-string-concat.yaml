@@ -1,0 +1,37 @@
+rules:
+  - id: shieldgate.python.sqli-string-concat
+    languages: [python]
+    severity: ERROR
+    message: >-
+      SQL query is built with string concatenation/formatting and passed to execute().
+      An attacker who controls any interpolated value can change the query (SQL injection).
+    metadata:
+      shortDescription: SQL injection via string-built query
+      severity: HIGH
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command"]
+      owasp: ["A03:2021 - Injection"]
+      fix: Use parameterized queries, e.g. cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,)), or the ORM's query builder.
+      confidence: HIGH
+      references: ["https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html"]
+    patterns:
+      - pattern-either:
+          - pattern: $CUR.$EXEC($SQL, ...)
+          - patterns:
+              - pattern-inside: |
+                  $Q = $SQL
+                  ...
+              - pattern: $CUR.$EXEC($Q, ...)
+      - metavariable-regex:
+          metavariable: $EXEC
+          regex: ^(execute|executemany|executescript|raw)$
+      # the query (or the variable holding it) is built from a string literal plus something dynamic
+      - metavariable-pattern:
+          metavariable: $SQL
+          pattern-either:
+            - pattern: '"..." + $X'
+            - pattern: '$X + "..."'
+            - pattern: '"..." % $X'
+            - pattern: '"...".format(...)'
+            - patterns:
+                - pattern: f"..."
+                - pattern-regex: \{

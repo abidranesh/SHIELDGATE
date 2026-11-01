@@ -1,0 +1,47 @@
+rules:
+  - id: shieldgate.python.weak-password-hash
+    languages: [python]
+    severity: ERROR
+    message: >-
+      A password appears to be hashed with a fast, broken digest (MD5/SHA1). These can be brute-forced
+      at billions of guesses per second.
+    metadata:
+      shortDescription: Weak password hashing (MD5/SHA1)
+      severity: HIGH
+      cwe: ["CWE-916: Use of Password Hash With Insufficient Computational Effort", "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 - Cryptographic Failures"]
+      fix: Use a password KDF such as argon2-cffi, bcrypt, or hashlib.scrypt / werkzeug.security.generate_password_hash.
+      confidence: MEDIUM
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.$H($PW, ...)
+          - pattern: hashlib.$H($PW.encode(...), ...)
+          - pattern: hashlib.$H(...).update($PW)
+          - pattern: hashlib.$H(...).update($PW.encode(...))
+          - pattern: hashlib.new("$ALG", $PW, ...)
+      - metavariable-regex:
+          metavariable: $PW
+          regex: (?i).*(passw|pwd|passwd|secret|pin\b).*
+      - pattern-not: hashlib.sha256(...)
+      - pattern-not: hashlib.sha512(...)
+      - pattern-not: hashlib.$H(..., usedforsecurity=False)
+      - metavariable-regex:
+          metavariable: $H
+          regex: ^(md5|sha1|new)$
+  - id: shieldgate.python.ecb-mode
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Block cipher in ECB mode: identical plaintext blocks produce identical ciphertext blocks,
+      leaking data patterns. ECB also provides no integrity.
+    metadata:
+      shortDescription: Insecure cipher mode (ECB)
+      severity: MEDIUM
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 - Cryptographic Failures"]
+      fix: Use an AEAD mode such as AES-GCM (cryptography.hazmat.primitives.ciphers.aead.AESGCM) with a unique nonce per message.
+      confidence: HIGH
+    pattern-either:
+      - pattern: $AES.new(..., $AES.MODE_ECB, ...)
+      - pattern: modes.ECB(...)
+      - pattern: cryptography.hazmat.primitives.ciphers.modes.ECB(...)

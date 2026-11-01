@@ -1,0 +1,52 @@
+rules:
+  - id: shieldgate.java.path-traversal
+    languages: [java]
+    severity: ERROR
+    message: >-
+      A file path is built from HTTP request data. "../" sequences allow reading or writing files outside
+      the intended directory (path traversal).
+    metadata:
+      shortDescription: Path traversal from request data
+      severity: HIGH
+      cwe: ["CWE-22: Improper Limitation of a Pathname to a Restricted Directory"]
+      owasp: ["A01:2021 - Broken Access Control"]
+      fix: Normalize with base.resolve(name).normalize() and reject the path unless it startsWith(base); or use FilenameUtils.getName().
+      confidence: MEDIUM
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: (HttpServletRequest $R).getParameter(...)
+          - pattern: (HttpServletRequest $R).getHeader(...)
+          - pattern: (HttpServletRequest $R).getQueryString()
+          - pattern: (HttpServletRequest $R).getCookies()
+          - pattern: (javax.servlet.http.HttpServletRequest $R).getParameter(...)
+          - patterns:
+              - pattern-inside: |
+                  $RET $M(..., @$ANNO(...) $T $P, ...) { ... }
+              - pattern: $P
+              - metavariable-regex:
+                  metavariable: $ANNO
+                  regex: ^(RequestParam|PathVariable|RequestHeader|RequestBody|QueryParam|PathParam)$
+          - patterns:
+              - pattern-inside: |
+                  $RET $M(..., @$ANNO $T $P, ...) { ... }
+              - pattern: $P
+              - metavariable-regex:
+                  metavariable: $ANNO
+                  regex: ^(RequestParam|PathVariable|RequestHeader|RequestBody|QueryParam|PathParam)$
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: FilenameUtils.getName(...)
+          - pattern: (File $F).getName()
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: new File($P, ...)
+              - pattern: new File($B, $P)
+              - pattern: new FileInputStream($P, ...)
+              - pattern: new FileOutputStream($P, ...)
+              - pattern: new FileReader($P, ...)
+              - pattern: Paths.get($P, ...)
+              - pattern: Path.of($P, ...)
+              - pattern: (Path $BASE).resolve($P)
+          - focus-metavariable: $P

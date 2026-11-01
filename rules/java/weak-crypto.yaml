@@ -1,0 +1,37 @@
+rules:
+  - id: shieldgate.java.weak-cipher
+    languages: [java]
+    severity: WARNING
+    message: >-
+      Cipher.getInstance uses ECB mode (explicitly, or implicitly via "AES") or a broken algorithm
+      (DES, 3DES, RC4, Blowfish). ECB leaks plaintext patterns and gives no integrity.
+    metadata:
+      shortDescription: Insecure cipher (ECB / DES / RC4)
+      severity: MEDIUM
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 - Cryptographic Failures"]
+      fix: Use Cipher.getInstance("AES/GCM/NoPadding") with a unique 12-byte IV and a 128-bit tag (GCMParameterSpec).
+      confidence: HIGH
+    patterns:
+      - pattern: Cipher.getInstance("$ALG", ...)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^(AES|DES|DESede|RC4|ARCFOUR|Blowfish|RC2)$|.*/ECB/.*|^(DES|DESede|RC4|Blowfish)/.*
+  - id: shieldgate.java.weak-hash
+    languages: [java]
+    severity: WARNING
+    message: >-
+      MessageDigest uses MD5/SHA-1, which are broken for collision resistance and far too fast for
+      password storage.
+    metadata:
+      shortDescription: Weak hash algorithm (MD5/SHA-1)
+      severity: MEDIUM
+      cwe: ["CWE-328: Use of Weak Hash", "CWE-916: Use of Password Hash With Insufficient Computational Effort"]
+      owasp: ["A02:2021 - Cryptographic Failures"]
+      fix: For passwords use BCryptPasswordEncoder/Argon2PasswordEncoder (Spring Security); for integrity use SHA-256 or better.
+      confidence: MEDIUM
+    patterns:
+      - pattern: MessageDigest.getInstance("$ALG", ...)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^(MD2|MD4|MD5|SHA-?1|SHA)$

@@ -1,0 +1,33 @@
+rules:
+  - id: shieldgate.js.eval-injection
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Request data reaches eval()/Function()/vm, executing attacker-controlled JavaScript on the server.
+    metadata:
+      shortDescription: Code injection via eval
+      severity: CRITICAL
+      cwe: ["CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code ('Eval Injection')"]
+      owasp: ["A03:2021 - Injection"]
+      fix: Never evaluate user input. Parse data with JSON.parse, or map inputs to an allowlist of operations.
+      confidence: HIGH
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQ.query
+          - pattern: $REQ.body
+          - pattern: $REQ.params
+          - pattern: $REQ.cookies
+          - pattern: $REQ.headers
+          - pattern: $REQ.query.$X
+          - pattern: $REQ.body.$X
+          - pattern: $REQ.params.$X
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: eval($X)
+              - pattern: new Function(..., $X)
+              - pattern: Function(..., $X)
+              - pattern: setTimeout($X, ...)
+              - pattern: vm.runInNewContext($X, ...)
+              - pattern: vm.runInThisContext($X, ...)
+          - focus-metavariable: $X

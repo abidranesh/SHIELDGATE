@@ -27,11 +27,13 @@ def parse_unified_diff(diff: str) -> dict[str, set[int]]:
 
 
 def changed_lines(base: str, head: str = "HEAD", cwd: str | Path = ".") -> dict[str, set[int]]:
-    out = subprocess.run(
-        ["git", "diff", "--no-color", "--unified=0", "--no-ext-diff", f"{base}...{head}"],
-        capture_output=True, text=True, cwd=cwd, check=True,
-    ).stdout
-    return parse_unified_diff(out)
+    """Lines changed on `head` since it diverged from `base`. Falls back to a plain
+    two-dot diff when the merge base is not available (shallow clones)."""
+    cmd = ["git", "diff", "--no-color", "--unified=0", "--no-ext-diff"]
+    proc = subprocess.run(cmd + [f"{base}...{head}"], capture_output=True, text=True, cwd=cwd)
+    if proc.returncode != 0:
+        proc = subprocess.run(cmd + [base, head], capture_output=True, text=True, cwd=cwd, check=True)
+    return parse_unified_diff(proc.stdout)
 
 
 def filter_to_diff(findings: list[Finding], changed: dict[str, set[int]], context: int = 0) -> list[Finding]:

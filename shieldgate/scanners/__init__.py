@@ -3,6 +3,7 @@ pure `parse(raw_json, target) -> list[Finding]` used by the unit tests."""
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -10,6 +11,19 @@ from pathlib import Path
 
 class ScannerUnavailable(RuntimeError):
     pass
+
+
+def resource(*parts: str) -> Path:
+    """Locate a bundled resource (rules/, config/). SHIELDGATE_HOME (set by action.yml to
+    the action checkout) wins; otherwise fall back to the source tree next to the package."""
+    home = os.environ.get("SHIELDGATE_HOME")
+    base = Path(home) if home else Path(__file__).resolve().parents[2]
+    path = base.joinpath(*parts)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"bundled resource {path} not found; set SHIELDGATE_HOME to the Shieldgate checkout "
+            "or pass an explicit path (e.g. --rules)")
+    return path
 
 
 def require(binary: str) -> str:

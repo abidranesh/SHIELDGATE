@@ -1,0 +1,34 @@
+rules:
+  - id: shieldgate.python.ssrf-requests
+    languages: [python]
+    severity: ERROR
+    message: >-
+      An outbound HTTP request uses a URL taken from the incoming request. Attackers can make the
+      server call internal services (e.g. http://169.254.169.254/ cloud metadata) — SSRF.
+    metadata:
+      shortDescription: Server-side request forgery (SSRF)
+      severity: HIGH
+      cwe: ["CWE-918: Server-Side Request Forgery (SSRF)"]
+      owasp: ["A10:2021 - Server-Side Request Forgery (SSRF)"]
+      fix: Validate the URL against an allowlist of hosts/schemes, resolve and block private/link-local IP ranges, and disable redirects.
+      confidence: MEDIUM
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: flask.request.$A
+          - pattern: request.args
+          - pattern: request.form
+          - pattern: request.json
+          - pattern: request.get_json(...)
+          - pattern: request.GET
+          - pattern: request.POST
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: requests.$M($URL, ...)
+              - pattern: httpx.$M($URL, ...)
+              - pattern: urllib.request.urlopen($URL, ...)
+              - pattern: urlopen($URL, ...)
+          - focus-metavariable: $URL
+    options:
+      taint_assume_safe_indexes: true

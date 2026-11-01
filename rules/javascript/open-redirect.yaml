@@ -1,0 +1,35 @@
+rules:
+  - id: shieldgate.js.open-redirect
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      res.redirect() uses a URL from the request. Attackers can send victims a link on your domain that
+      forwards them to a malicious site (open redirect).
+    metadata:
+      shortDescription: Open redirect
+      severity: MEDIUM
+      cwe: ["CWE-601: URL Redirection to Untrusted Site ('Open Redirect')"]
+      owasp: ["A01:2021 - Broken Access Control"]
+      fix: Redirect only to relative paths starting with a single "/" or to an allowlist of hosts; otherwise use a fixed default.
+      confidence: MEDIUM
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQ.query
+          - pattern: $REQ.body
+          - pattern: $REQ.params
+          - pattern: $REQ.cookies
+          - pattern: $REQ.headers
+          - pattern: $REQ.query.$X
+          - pattern: $REQ.body.$X
+          - pattern: $REQ.params.$X
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $RES.redirect($URL)
+              - pattern: $RES.redirect($CODE, $URL)
+              - pattern: window.location.href = $URL
+              - pattern: window.location = $URL
+          - focus-metavariable: $URL
+    options:
+      taint_assume_safe_indexes: true

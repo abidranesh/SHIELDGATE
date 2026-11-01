@@ -1,0 +1,57 @@
+rules:
+  - id: shieldgate.java.xss-servlet-writer
+    languages: [java]
+    severity: WARNING
+    message: Request data is written directly into the HTTP response without HTML encoding (reflected XSS).
+    metadata:
+      shortDescription: Reflected XSS via response writer
+      severity: MEDIUM
+      cwe: ["CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"]
+      owasp: ["A03:2021 - Injection"]
+      fix: Encode output with OWASP Java Encoder (Encode.forHtml(value)) or render through an auto-escaping template engine (Thymeleaf th:text).
+      confidence: MEDIUM
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: (HttpServletRequest $R).getParameter(...)
+          - pattern: (HttpServletRequest $R).getHeader(...)
+          - pattern: (HttpServletRequest $R).getQueryString()
+          - pattern: (HttpServletRequest $R).getCookies()
+          - pattern: (javax.servlet.http.HttpServletRequest $R).getParameter(...)
+          - patterns:
+              - pattern-inside: |
+                  $RET $M(..., @$ANNO(...) $T $P, ...) { ... }
+              - pattern: $P
+              - metavariable-regex:
+                  metavariable: $ANNO
+                  regex: ^(RequestParam|PathVariable|RequestHeader|RequestBody|QueryParam|PathParam)$
+          - patterns:
+              - pattern-inside: |
+                  $RET $M(..., @$ANNO $T $P, ...) { ... }
+              - pattern: $P
+              - metavariable-regex:
+                  metavariable: $ANNO
+                  regex: ^(RequestParam|PathVariable|RequestHeader|RequestBody|QueryParam|PathParam)$
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: Encode.$F(...)
+          - pattern: HtmlUtils.htmlEscape(...)
+          - pattern: StringEscapeUtils.escapeHtml4(...)
+          - pattern: ESAPI.encoder().$F(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: (HttpServletResponse $R).getWriter().$W($X)
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          $PW = (HttpServletResponse $R).getWriter();
+                          ...
+                      - pattern-inside: |
+                          PrintWriter $PW = (HttpServletResponse $R).getWriter();
+                          ...
+                  - pattern: $PW.$W($X)
+          - metavariable-regex:
+              metavariable: $W
+              regex: ^(print|println|write|append|printf|format)$
+          - focus-metavariable: $X

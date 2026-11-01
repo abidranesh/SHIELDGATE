@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -9,6 +10,13 @@ from . import __version__
 from .findings import Finding, Severity
 
 COMMENT_MARKER = "<!-- shieldgate:pr-comment -->"
+
+
+def comment_marker(key: str = "") -> str:
+    """Hidden marker identifying a sticky comment. Scans of different paths in the same PR
+    (e.g. the repo root and a sub-app) each get their own comment instead of overwriting."""
+    key = key.strip().strip("/")
+    return COMMENT_MARKER if key in ("", ".") else f"<!-- shieldgate:pr-comment:{key} -->"
 SEV_ICON = {
     Severity.CRITICAL: "🟥",
     Severity.HIGH: "🟧",
@@ -25,6 +33,21 @@ def _cwe_link(cwe: str) -> str:
     return f"[{cwe}](https://cwe.mitre.org/data/definitions/{num}.html)" if num.isdigit() else cwe
 
 
+def _vkey(v: str) -> tuple:
+    return tuple(int(p) if p.isdigit() else -1 for p in re.split(r"[.\-+]", v.strip()))
+
+
+def min_safe_version(findings: list[Finding]) -> str:
+    """Highest of the per-advisory fixed versions = the lowest version fixing all of them.
+    (When an advisory lists several fixed versions, e.g. per release line, take the highest.)"""
+    best = ""
+    for f in findings:
+        for v in (x.strip() for x in f.fixed_version.split(",") if x.strip()):
+            if not best or _vkey(v) > _vkey(best):
+                best = v
+    return best
+
+
 def _esc(s: str) -> str:
     return s.replace("|", "\\|").replace("\n", " ").strip()
 
@@ -38,13 +61,15 @@ def render_comment(
     scope: str = "diff",
     threshold: Severity | None = Severity.HIGH,
     scanners: dict[str, str] | None = None,
+    key: str = "",
 ) -> str:
     counts = {s: 0 for s in sorted(Severity, reverse=True)}
     for f in findings:
         counts[f.severity] += 1
     failing = threshold is not None and any(f.severity >= threshold for f in findings)
 
-    lines = [COMMENT_MARKER, "## 🛡️ Shieldgate security scan", ""]
+    title = "## 🛡️ Shieldgate security scan" + (f" — `{key.strip('/')}`" if key.strip("/. ") else "")
+    lines = [comment_marker(key), title, ""]
     if not findings:
         lines.append("✅ **No new security findings**" + (" in the changed lines." if scope == "diff" else "."))
     else:
@@ -70,7 +95,26 @@ def render_comment(
         group = by_file[path]
         lines += [f"<details{' open' if max(x.severity for x in group) >= Severity.HIGH else ''}>",
                   f"<summary><b><code>{path}</code></b> — {len(group)} finding(s)</summary>", ""]
+        deps = [f for f in group if f.category == "dependency"]
+        by_pkg: dict[tuple, list[Finding]] = defaultdict(list)
+        for f in deps:
+            by_pkg[(f.package, f.installed_version)].append(f)
+        for (pkg, ver), vs in sorted(by_pkg.items(), key=lambda kv: -max(x.severity for x in kv[1])):
+            top = max(x.severity for x in vs)
+            ids = ", ".join(f"[{x.rule_id}]({x.references[0]})" if x.references else x.rule_id
+                            for x in sorted(vs, key=lambda x: -x.severity))
+            safe = min_safe_version(vs)
+            unfixed = sum(1 for x in vs if not x.fixed_version)
+            lines.append(f"- {SEV_ICON[top]} **`{pkg}@{ver}`** — {len(vs)} known vulnerabilit"
+                         f"{'y' if len(vs) == 1 else 'ies'}")
+            lines.append(f"  - {ids}")
+            hint = f"upgrade to **{safe}** or later" if safe else "no fixed version published"
+            if safe and unfixed:
+                hint += f" ({unfixed} advisory(ies) have no fix yet)"
+            lines.append(f"  - 💡 **Fix:** {hint}")
         for f in group:
+            if f.category == "dependency":
+                continue
             loc = f"L{f.line}" if f.line else "file"
             if repo_url and sha and f.line:
                 anchor = f"#L{f.line}" + (f"-L{f.end_line}" if f.end_line > f.line else "")
@@ -81,9 +125,6 @@ def render_comment(
             lines.append(f"- {SEV_ICON[f.severity]} **{_esc(f.title)}** ({loc}) `{f.rule_id}`")
             if f.message:
                 lines.append(f"  - {_esc(f.message)[:400]}")
-            if f.category == "dependency" and f.package:
-                lines.append(f"  - `{f.package}@{f.installed_version}` → fixed in "
-                             f"`{f.fixed_version or 'n/a'}`")
             if tags:
                 lines.append(f"  - {tags}")
             if f.fix:

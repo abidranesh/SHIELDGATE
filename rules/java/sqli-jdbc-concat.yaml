@@ -1,0 +1,41 @@
+rules:
+  - id: shieldgate.java.sqli-jdbc-concat
+    languages: [java]
+    severity: ERROR
+    message: >-
+      A JDBC/JPA query string is built by concatenation and executed. Attacker-controlled values change
+      the SQL statement (SQL injection).
+    metadata:
+      shortDescription: SQL injection via string-built query
+      severity: HIGH
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command"]
+      owasp: ["A03:2021 - Injection"]
+      fix: Use PreparedStatement with ? placeholders (ps.setString(1, name)) or JPA named parameters.
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: ($S $STMT).$EXEC("..." + $X, ...)
+          - pattern: ($S $STMT).$EXEC("..." + $X + $Y, ...)
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      String $Q = "..." + $X;
+                      ...
+                  - pattern-inside: |
+                      String $Q = "..." + $X + $Y;
+                      ...
+              - pattern: ($S $STMT).$EXEC($Q, ...)
+          - patterns:
+              - pattern-inside: |
+                  $Q = "..." + $X;
+                  ...
+              - pattern: ($S $STMT).$EXEC($Q, ...)
+          - pattern: ($S $STMT).$EXEC(String.format(...), ...)
+      - pattern-not: ($S $STMT).$EXEC("..." + "...", ...)
+      - pattern-not: ($S $STMT).$EXEC("..." + "..." + "...", ...)
+      - metavariable-regex:
+          metavariable: $EXEC
+          regex: ^(executeQuery|executeUpdate|execute|addBatch|prepareStatement|createQuery|createNativeQuery|queryForList|queryForObject|update|query)$
+      - metavariable-regex:
+          metavariable: $S
+          regex: .*(Statement|Connection|EntityManager|JdbcTemplate|Session).*

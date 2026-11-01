@@ -1,0 +1,22 @@
+rules:
+  - id: shieldgate.python.tls-verify-disabled
+    languages: [python]
+    severity: ERROR
+    message: >-
+      TLS certificate verification is disabled, so any network attacker can intercept and modify
+      this connection (man-in-the-middle).
+    metadata:
+      shortDescription: TLS certificate verification disabled
+      severity: HIGH
+      cwe: ["CWE-295: Improper Certificate Validation"]
+      owasp: ["A02:2021 - Cryptographic Failures", "A07:2021 - Identification and Authentication Failures"]
+      fix: Remove verify=False. For private CAs pass verify="/path/to/ca-bundle.pem" (or set REQUESTS_CA_BUNDLE).
+      confidence: HIGH
+    pattern-either:
+      - pattern: requests.$M(..., verify=False, ...)
+      - pattern: requests.Session(...).$M(..., verify=False, ...)
+      - pattern: httpx.$M(..., verify=False, ...)
+      - pattern: $S.verify = False
+      - pattern: ssl._create_unverified_context(...)
+      - pattern: ssl.create_default_context(...).check_hostname = False
+      - pattern: $CTX.verify_mode = ssl.CERT_NONE

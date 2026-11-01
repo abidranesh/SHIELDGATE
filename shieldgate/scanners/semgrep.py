@@ -4,9 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..findings import Finding, Severity
-from . import rel, require, run_json
-
-DEFAULT_RULES = Path(__file__).resolve().parents[2] / "rules"
+from . import rel, require, resource, run_json
 
 
 def _as_list(v) -> list[str]:
@@ -52,7 +50,7 @@ def run(target: str | Path, rules: str | Path | None = None, extra_configs: list
         exclude: list[str] | None = None) -> list[Finding]:
     require("semgrep")
     cmd = ["semgrep", "scan", "--json", "--metrics=off", "--quiet", "--disable-version-check",
-           "--config", str(rules or DEFAULT_RULES)]
+           "--config", str(rules or resource("rules"))]
     for c in extra_configs or []:
         cmd += ["--config", c]
     for e in exclude or []:

@@ -1,0 +1,37 @@
+rules:
+  - id: shieldgate.js.path-traversal
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      A filesystem path is built from request data. "../" sequences let attackers read or overwrite
+      arbitrary files (path traversal).
+    metadata:
+      shortDescription: Path traversal from request data
+      severity: HIGH
+      cwe: ["CWE-22: Improper Limitation of a Pathname to a Restricted Directory"]
+      owasp: ["A01:2021 - Broken Access Control"]
+      fix: Use path.basename() or resolve the path and check it startsWith(the base directory + path.sep); for downloads use res.sendFile(name, { root }).
+      confidence: MEDIUM
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: $REQ.query
+          - pattern: $REQ.body
+          - pattern: $REQ.params
+          - pattern: $REQ.cookies
+          - pattern: $REQ.headers
+          - pattern: $REQ.query.$X
+          - pattern: $REQ.body.$X
+          - pattern: $REQ.params.$X
+    pattern-sanitizers:
+      - pattern: path.basename(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: fs.$F($P, ...)
+              - pattern: $RES.sendFile($P)
+              - pattern: $RES.download($P, ...)
+          - focus-metavariable: $P
+    options:
+      taint_assume_safe_functions: false
+      taint_assume_safe_indexes: true

@@ -1,0 +1,33 @@
+rules:
+  - id: shieldgate.python.flask-debug-true
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Flask is started with debug=True. The Werkzeug debugger allows arbitrary code execution
+      from the browser if this is ever reachable outside localhost.
+    metadata:
+      shortDescription: Flask debug mode enabled
+      severity: HIGH
+      cwe: ["CWE-489: Active Debug Code", "CWE-94: Improper Control of Generation of Code"]
+      owasp: ["A05:2021 - Security Misconfiguration"]
+      fix: Remove debug=True; drive it from config, e.g. app.run(debug=os.environ.get("FLASK_DEBUG") == "1"), and use a WSGI server (gunicorn) in production.
+      confidence: HIGH
+    pattern-either:
+      - pattern: $APP.run(..., debug=True, ...)
+      - pattern: $APP.debug = True
+      - pattern: $APP.config["DEBUG"] = True
+  - id: shieldgate.python.django-debug-true
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Django settings set DEBUG = True. In production this exposes stack traces, settings and SQL
+      to anyone who triggers an error.
+    metadata:
+      shortDescription: Django DEBUG enabled in settings
+      severity: MEDIUM
+      cwe: ["CWE-489: Active Debug Code", "CWE-215: Insertion of Sensitive Information Into Debugging Code"]
+      owasp: ["A05:2021 - Security Misconfiguration"]
+      fix: Set DEBUG = os.environ.get("DJANGO_DEBUG") == "1" (default False) and keep a separate local settings file.
+      confidence: MEDIUM
+    patterns:
+      - pattern: DEBUG = True
