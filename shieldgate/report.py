@@ -10,6 +10,13 @@ from . import __version__
 from .findings import Finding, Severity
 
 COMMENT_MARKER = "<!-- shieldgate:pr-comment -->"
+
+
+def comment_marker(key: str = "") -> str:
+    """Hidden marker identifying a sticky comment. Scans of different paths in the same PR
+    (e.g. the repo root and a sub-app) each get their own comment instead of overwriting."""
+    key = key.strip().strip("/")
+    return COMMENT_MARKER if key in ("", ".") else f"<!-- shieldgate:pr-comment:{key} -->"
 SEV_ICON = {
     Severity.CRITICAL: "🟥",
     Severity.HIGH: "🟧",
@@ -54,13 +61,15 @@ def render_comment(
     scope: str = "diff",
     threshold: Severity | None = Severity.HIGH,
     scanners: dict[str, str] | None = None,
+    key: str = "",
 ) -> str:
     counts = {s: 0 for s in sorted(Severity, reverse=True)}
     for f in findings:
         counts[f.severity] += 1
     failing = threshold is not None and any(f.severity >= threshold for f in findings)
 
-    lines = [COMMENT_MARKER, "## 🛡️ Shieldgate security scan", ""]
+    title = "## 🛡️ Shieldgate security scan" + (f" — `{key.strip('/')}`" if key.strip("/. ") else "")
+    lines = [comment_marker(key), title, ""]
     if not findings:
         lines.append("✅ **No new security findings**" + (" in the changed lines." if scope == "diff" else "."))
     else:

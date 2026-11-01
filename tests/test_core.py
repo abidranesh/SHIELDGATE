@@ -284,6 +284,19 @@ class TestStickyComment:
         assert github.upsert_pr_comment("o/r", 5, "t", COMMENT_MARKER + "\nnew") == "updated"
         assert calls[-1][0] == "PATCH" and calls[-1][1].endswith("/issues/comments/7")
 
+    def test_per_path_comments_do_not_collide(self, monkeypatch):
+        from shieldgate import github
+        from shieldgate.report import comment_marker
+        root = COMMENT_MARKER + "\nroot results"
+        calls, req = self._fake([{"id": 7, "body": root}])
+        monkeypatch.setattr(github, "_req", req)
+        body = render_comment([], key="demo-vulnerable-app")
+        assert body.startswith(comment_marker("demo-vulnerable-app"))
+        assert "`demo-vulnerable-app`" in body
+        # the root comment must not be overwritten by the sub-app scan
+        assert github.upsert_pr_comment("o/r", 5, "t", body) == "created"
+        assert comment_marker(".") == comment_marker("") == COMMENT_MARKER
+
     def test_creates_when_missing(self, monkeypatch):
         from shieldgate import github
         calls, req = self._fake([{"id": 1, "body": "unrelated"}])

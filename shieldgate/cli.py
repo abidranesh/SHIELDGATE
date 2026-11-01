@@ -131,7 +131,8 @@ def cmd_scan(args) -> int:
     event = _event()
     sha = (event.get("pull_request") or {}).get("head", {}).get("sha") or os.environ.get("GITHUB_SHA", "")
     comment = render_comment(findings, repo_url=f"{server}/{repo}" if repo else "", sha=sha,
-                             suppressed=len(suppressed), scope=scope, threshold=threshold, scanners=used)
+                             suppressed=len(suppressed), scope=scope, threshold=threshold, scanners=used,
+                             key=args.path)
     if args.markdown:
         Path(args.markdown).write_text(comment)
     if args.sarif:
