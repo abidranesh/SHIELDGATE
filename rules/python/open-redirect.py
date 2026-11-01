@@ -13,3 +13,8 @@ def login():
 def logout():
     # ok: shieldgate.python.open-redirect
     return redirect(url_for("index"))
+
+@app.route("/back")
+def back():
+    # ok: shieldgate.python.open-redirect
+    return redirect(request.referrer or url_for("index"))

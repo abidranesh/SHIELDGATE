@@ -53,8 +53,9 @@ def run_scanners(target: Path, names: list[str], rules: str | None, strict: bool
         try:
             log(f"running {name} …")
             res = SCANNERS[name](target, rules, extra_rules, exclude=exclude) if name == "semgrep" else SCANNERS[name](target)
-            res = [f for f in res if not excluded(f.path, exclude or [])]
-            log(f"{name}: {len(res)} raw finding(s)")
+            kept = [f for f in res if not excluded(f.path, exclude or [])]
+            log(f"{name}: {len(res)} raw finding(s), {len(res) - len(kept)} in excluded paths")
+            res = kept
             findings += res
             used[name] = tool_version(name)
         except ScannerUnavailable as e:

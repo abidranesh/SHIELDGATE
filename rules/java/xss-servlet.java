@@ -11,5 +11,9 @@ public class XssFixture extends HttpServlet {
         out.println("<h1>Results for " + q + "</h1>");
         // ok: shieldgate.java.xss-servlet-writer
         out.println("<h1>Results for " + Encode.forHtml(q) + "</h1>");
+        try (PrintWriter log = new PrintWriter("/tmp/audit.log")) {
+            // ok: shieldgate.java.xss-servlet-writer
+            log.println("query: " + q);
+        }
     }
 }

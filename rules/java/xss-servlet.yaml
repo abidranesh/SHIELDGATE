@@ -42,7 +42,15 @@ rules:
       - patterns:
           - pattern-either:
               - pattern: (HttpServletResponse $R).getWriter().$W($X)
-              - pattern: (PrintWriter $PW).$W($X)
+              - patterns:
+                  - pattern-either:
+                      - pattern-inside: |
+                          $PW = (HttpServletResponse $R).getWriter();
+                          ...
+                      - pattern-inside: |
+                          PrintWriter $PW = (HttpServletResponse $R).getWriter();
+                          ...
+                  - pattern: $PW.$W($X)
           - metavariable-regex:
               metavariable: $W
               regex: ^(print|println|write|append|printf|format)$

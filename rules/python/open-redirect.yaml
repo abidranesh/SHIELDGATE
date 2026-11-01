@@ -15,7 +15,11 @@ rules:
     mode: taint
     pattern-sources:
       - pattern-either:
-          - pattern: flask.request.$A
+          - patterns:
+              - pattern: flask.request.$A
+              - metavariable-regex:
+                  metavariable: $A
+                  regex: ^(args|form|values|json|get_json|data|cookies|headers)$
           - pattern: request.args
           - pattern: request.form
           - pattern: request.values

@@ -3,30 +3,51 @@ rules:
     languages: [javascript, typescript]
     severity: WARNING
     message: >-
-      A non-constant value is written to innerHTML/outerHTML/document.write. If it contains user input,
-      attacker-supplied HTML/JS executes in the victim's browser (DOM XSS).
+      Attacker-controllable browser input (URL, hash, referrer, postMessage data, storage) flows into
+      innerHTML/outerHTML/insertAdjacentHTML/document.write, so injected markup executes (DOM XSS).
     metadata:
-      shortDescription: DOM XSS sink (innerHTML / document.write)
+      shortDescription: DOM XSS (URL/message data into innerHTML)
       severity: MEDIUM
       cwe: ["CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')"]
       owasp: ["A03:2021 - Injection"]
       fix: Use textContent / innerText for text, build nodes with createElement, or sanitize with DOMPurify.sanitize() before assigning HTML.
       confidence: MEDIUM
-    patterns:
+    mode: taint
+    pattern-sources:
       - pattern-either:
-          - pattern: $EL.innerHTML = $V
-          - pattern: $EL.outerHTML = $V
-          - pattern: $EL.innerHTML += $V
-          - pattern: document.write($V)
-          - pattern: document.writeln($V)
-          - pattern: $EL.insertAdjacentHTML($POS, $V)
-      - pattern-not: $EL.innerHTML = "..."
-      - pattern-not: $EL.outerHTML = "..."
-      - pattern-not: $EL.innerHTML = `...`
-      - pattern-not: document.write("...")
-      - pattern-not: $EL.insertAdjacentHTML($POS, "...")
-      - pattern-not: $EL.innerHTML = DOMPurify.sanitize(...)
-      - pattern-not: $EL.innerHTML = $X.sanitize(...)
+          - pattern: location.$P
+          - pattern: window.location.$P
+          - pattern: document.location.$P
+          - pattern: document.URL
+          - pattern: document.documentURI
+          - pattern: document.referrer
+          - pattern: window.name
+          - pattern: new URLSearchParams(...)
+          - pattern: localStorage.getItem(...)
+          - pattern: sessionStorage.getItem(...)
+          - patterns:
+              - pattern-inside: |
+                  $W.addEventListener("message", ($E) => { ... })
+              - pattern: $E.data
+          - patterns:
+              - pattern-inside: |
+                  $W.addEventListener("message", function ($E) { ... })
+              - pattern: $E.data
+    pattern-sanitizers:
+      - pattern-either:
+          - pattern: DOMPurify.sanitize(...)
+          - pattern: $X.sanitize(...)
+          - pattern: encodeURIComponent(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $EL.innerHTML = $V
+              - pattern: $EL.outerHTML = $V
+              - pattern: $EL.innerHTML += $V
+              - pattern: document.write($V)
+              - pattern: document.writeln($V)
+              - pattern: $EL.insertAdjacentHTML($POS, $V)
+          - focus-metavariable: $V
   - id: shieldgate.js.xss-dangerouslysetinnerhtml
     languages: [javascript, typescript]
     severity: WARNING

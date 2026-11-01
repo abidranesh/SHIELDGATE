@@ -1,0 +1,22 @@
+# Deliberately vulnerable public apps. Commits are pinned so results are reproducible.
+targets:
+  - name: juice-shop
+    repo: https://github.com/juice-shop/juice-shop
+    commit: 717f5efa886b0417eeecb52378b03cf10567b7e2
+    stack: TypeScript / Node.js (Express, Angular)
+  - name: NodeGoat
+    repo: https://github.com/OWASP/NodeGoat
+    commit: c5cb68a7084e4ae7dcc60e6a98768720a81841e8
+    stack: JavaScript / Node.js (Express)
+  - name: WebGoat
+    repo: https://github.com/WebGoat/WebGoat
+    commit: be2c186b94201bcbdfa46c3a6f5f53dd83262d6a
+    stack: Java (Spring Boot)
+  - name: pygoat
+    repo: https://github.com/adeyosemanputra/pygoat
+    commit: 32a0a59bbebf9ff155c4103343af2896bff8d9d8
+    stack: Python (Django)
+  - name: Vulnerable-Flask-App
+    repo: https://github.com/we45/Vulnerable-Flask-App
+    commit: b6a4f97afd466e83e1f60781494252dec1c37039
+    stack: Python (Flask)

@@ -16,5 +16,7 @@ public class SqliFixture {
         PreparedStatement ps = conn.prepareStatement("SELECT * FROM users WHERE name = ?");
         ps.setString(1, name);
         ps.executeQuery();
+        // ok: shieldgate.java.sqli-jdbc-concat
+        conn.prepareStatement("INSERT INTO users(name, admin)" + " VALUES(?, ?)");
     }
 }

@@ -31,6 +31,8 @@ rules:
                   ...
               - pattern: ($S $STMT).$EXEC($Q, ...)
           - pattern: ($S $STMT).$EXEC(String.format(...), ...)
+      - pattern-not: ($S $STMT).$EXEC("..." + "...", ...)
+      - pattern-not: ($S $STMT).$EXEC("..." + "..." + "...", ...)
       - metavariable-regex:
           metavariable: $EXEC
           regex: ^(executeQuery|executeUpdate|execute|addBatch|prepareStatement|createQuery|createNativeQuery|queryForList|queryForObject|update|query)$
