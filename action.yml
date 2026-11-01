@@ -104,6 +104,7 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.token }}
+        SHIELDGATE_HOME: ${{ github.action_path }}
         IN_PATH: ${{ inputs.path }}
         IN_FAIL_ON: ${{ inputs.fail-on }}
         IN_SCOPE: ${{ inputs.scope }}

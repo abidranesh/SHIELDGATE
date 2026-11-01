@@ -7,9 +7,8 @@ from collections import Counter
 from pathlib import Path
 
 from ..findings import Finding, Severity, mask_secret
-from . import rel, require, run_json
+from . import rel, require, resource, run_json
 
-DEFAULT_CONFIG = Path(__file__).resolve().parents[2] / "config" / "gitleaks.toml"
 # Generic (non-provider-specific) rules must clear this Shannon entropy to be reported.
 MIN_GENERIC_ENTROPY = 3.5
 HIGH_CONFIDENCE = {"aws-access-token", "github-pat", "github-fine-grained-pat", "private-key",
@@ -60,6 +59,6 @@ def run(target: str | Path, config: str | Path | None = None) -> list[Finding]:
         report = Path(td) / "gitleaks.json"
         cmd = ["gitleaks", "dir", str(target), "--no-banner", "--exit-code", "0",
                "--report-format", "json", "--report-path", str(report),
-               "--config", str(config or DEFAULT_CONFIG), "--log-level", "error"]
+               "--config", str(config or resource("config", "gitleaks.toml")), "--log-level", "error"]
         data = run_json(cmd, ok_codes=(0,), out_file=report)
     return parse(data, target)

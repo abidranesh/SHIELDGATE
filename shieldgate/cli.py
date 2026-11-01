@@ -212,7 +212,11 @@ def main(argv: list[str] | None = None) -> int:
     b.set_defaults(func=cmd_baseline)
 
     args = p.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except Exception as e:  # noqa: BLE001 - a crash must not look like "findings" (exit 1)
+        log(f"error: {type(e).__name__}: {e}")
+        return 2
 
 
 if __name__ == "__main__":

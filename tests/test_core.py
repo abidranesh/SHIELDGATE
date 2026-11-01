@@ -290,3 +290,24 @@ class TestStickyComment:
         monkeypatch.setattr(github, "_req", req)
         assert github.upsert_pr_comment("o/r", 5, "t", "body") == "created"
         assert calls[-1][0] == "POST" and calls[-1][1].endswith("/issues/5/comments")
+
+
+# ---------------------------------------------------------------- bundled resources
+class TestResources:
+    def test_shieldgate_home_wins(self, tmp_path, monkeypatch):
+        from shieldgate.scanners import resource
+        (tmp_path / "rules").mkdir()
+        monkeypatch.setenv("SHIELDGATE_HOME", str(tmp_path))
+        assert resource("rules") == tmp_path / "rules"
+
+    def test_missing_resource_is_a_clear_error(self, tmp_path, monkeypatch):
+        from shieldgate.scanners import resource
+        monkeypatch.setenv("SHIELDGATE_HOME", str(tmp_path))
+        with pytest.raises(FileNotFoundError, match="SHIELDGATE_HOME"):
+            resource("rules")
+
+    def test_crash_exits_2_not_1(self, tmp_path, monkeypatch):
+        from shieldgate import cli
+        monkeypatch.setenv("SHIELDGATE_HOME", str(tmp_path))  # no rules/ here -> crash
+        monkeypatch.setattr(cli.semgrep, "require", lambda b: b)
+        assert cli.main(["scan", str(tmp_path), "--scanners", "semgrep", "--scope", "full"]) == 2
