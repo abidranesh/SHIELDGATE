@@ -300,7 +300,7 @@ action.yml         composite GitHub Action
 * **Pinned tools:** Semgrep 1.183.0 and Checkov 3.2.300 (pip, each in its own venv);
   Gitleaks 8.21.2 and OSV-Scanner 1.9.2 (release binaries, **SHA-256 verified** in
   `action.yml`). First-party actions (`actions/setup-python@v5`,
-  `github/codeql-action/upload-sarif@v3`) are pinned by major tag. Pin them to commit SHAs if
+  `github/codeql-action/upload-sarif@v4`) are pinned by major tag. Pin them to commit SHAs if
   your policy requires it.
 * **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): pytest, `semgrep --validate`,
   `semgrep --test`, rule metadata lint.
