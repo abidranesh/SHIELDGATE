@@ -1,6 +1,7 @@
 """OSV-Scanner adapter: known CVEs in dependency manifests/lockfiles."""
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from ..findings import Finding, Severity
@@ -80,7 +81,11 @@ def parse(data: dict | None, target: str | Path) -> list[Finding]:
 
 def run(target: str | Path) -> list[Finding]:
     require("osv-scanner")
-    cmd = ["osv-scanner", "--format", "json", "--recursive", str(target)]
+    cmd = ["osv-scanner", "--format", "json", "--recursive"]
+    if os.environ.get("SHIELDGATE_OSV_OFFLINE") == "1":
+        # use the downloadable OSV database instead of the api.osv.dev query API
+        cmd += ["--experimental-offline", "--experimental-download-offline-databases"]
+    cmd.append(str(target))
     # exit 1 = vulns found, 128 = no packages found
     data = run_json(cmd, ok_codes=(0, 1, 128))
     return parse(data, target)

@@ -1,0 +1,37 @@
+# Shieldgate tuned Gitleaks config.
+# Starts from Gitleaks' built-in ruleset (~150 provider-specific rules) and adds
+# an entropy-gated generic rule plus allowlists that remove common noise.
+title = "shieldgate"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "shieldgate-generic-high-entropy-assignment"
+description = "High-entropy value assigned to a secret-like variable"
+# key = "value" / key: value where key looks like a credential name
+regex = '''(?i)(?:secret|token|passwd|password|api[_-]?key|access[_-]?key|private[_-]?key|client[_-]?secret|auth)[\w.-]{0,20}\s*[:=]\s*["']([A-Za-z0-9+/=_\-!@#$%^&*]{16,128})["']'''
+secretGroup = 1
+entropy = 3.8
+keywords = ["secret", "token", "passw", "api_key", "apikey", "api-key", "access_key", "private_key", "client_secret", "auth"]
+[rules.allowlist]
+regexes = ['''(?i)^(?:x+|\*+|<[^>]+>|\$\{[^}]+\}|\{\{[^}]+\}\}|changeme|example|placeholder|your[_-].*|dummy.*|test.*|fake.*)$''']
+
+[allowlist]
+description = "Shieldgate global allowlist"
+paths = [
+  '''(?:^|/)node_modules/''',
+  '''(?:^|/)vendor/''',
+  '''(?:^|/)\.git/''',
+  '''(?:^|/)(?:package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|Pipfile\.lock|go\.sum|Cargo\.lock|composer\.lock)$''',
+  '''\.min\.(?:js|css)$''',
+  '''\.(?:png|jpe?g|gif|svg|ico|woff2?|ttf|eot|pdf|zip|gz|jar)$''',
+  '''(?:^|/)\.shieldgate-baseline\.yml$''',
+]
+# Obvious placeholders / documentation values
+regexes = [
+  '''AKIAIOSFODNN7EXAMPLE''',
+  '''wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY''',
+  '''(?i)\b(?:example|sample|placeholder|redacted|dummy)[_-]?(?:key|token|secret)\b''',
+]
+stopwords = ["example", "placeholder", "changeme", "xxxxxxxx", "dummy", "your_api_key"]
