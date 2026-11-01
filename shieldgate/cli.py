@@ -44,13 +44,14 @@ def excluded(path: str, patterns: list[str]) -> bool:
 
 
 def run_scanners(target: Path, names: list[str], rules: str | None, strict: bool,
-                 exclude: list[str] | None = None) -> tuple[list[Finding], dict]:
+                 exclude: list[str] | None = None, extra_rules: list[str] | None = None,
+                 ) -> tuple[list[Finding], dict]:
     findings: list[Finding] = []
     used = {}
     for name in names:
         try:
             log(f"running {name} …")
-            res = SCANNERS[name](target, rules, exclude=exclude) if name == "semgrep" else SCANNERS[name](target)
+            res = SCANNERS[name](target, rules, extra_rules, exclude=exclude) if name == "semgrep" else SCANNERS[name](target)
             res = [f for f in res if not excluded(f.path, exclude or [])]
             log(f"{name}: {len(res)} raw finding(s)")
             findings += res
@@ -75,6 +76,22 @@ def resolve_scope(args) -> tuple[str, str | None]:
     return ("diff", base) if base else ("full", None)
 
 
+def _repo_relative(findings: list[Finding], target: Path) -> list[Finding]:
+    """Make paths relative to the git root so diff scope, links and baselines agree
+    even when scanning a sub-directory."""
+    try:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=target,
+                             capture_output=True, text=True, check=True).stdout.strip()
+        prefix = target.resolve().relative_to(Path(top).resolve())
+    except (subprocess.CalledProcessError, ValueError, FileNotFoundError):
+        return findings
+    if str(prefix) in ("", "."):
+        return findings
+    for f in findings:
+        f.path = str(prefix / f.path)
+    return findings
+
+
 def _event() -> dict:
     p = os.environ.get("GITHUB_EVENT_PATH")
     if p and Path(p).exists():
@@ -90,8 +107,8 @@ def cmd_scan(args) -> int:
         raise SystemExit(f"unknown scanner(s): {', '.join(sorted(unknown))}")
     scope, base = resolve_scope(args)
 
-    raw, used = run_scanners(target, names, args.rules, args.strict, args.exclude)
-    findings = dedupe(raw)
+    raw, used = run_scanners(target, names, args.rules, args.strict, args.exclude, args.extra_rules)
+    findings = [f for f in dedupe(_repo_relative(raw, target)) if not excluded(f.path, args.exclude)]
     if scope == "diff":
         changed = diffscope.changed_lines(base, "HEAD", cwd=target)
         findings = diffscope.filter_to_diff(findings, changed)
@@ -99,6 +116,8 @@ def cmd_scan(args) -> int:
 
     try:
         baseline_path = args.baseline or (target / ".shieldgate-baseline.yml")
+        if args.baseline and not Path(args.baseline).is_absolute() and not Path(args.baseline).exists():
+            baseline_path = target / args.baseline
         findings, suppressed = apply_baseline(findings, load_baseline(baseline_path))
     except BaselineError as e:
         log(f"invalid baseline: {e}")
@@ -149,7 +168,8 @@ def _print_console(findings: list[Finding], suppressed: int) -> None:
 def cmd_baseline(args) -> int:
     target = Path(args.path).resolve()
     names = [s.strip() for s in args.scanners.split(",") if s.strip()]
-    raw, _ = run_scanners(target, names, args.rules, strict=False, exclude=args.exclude)
+    raw, _ = run_scanners(target, names, args.rules, strict=False, exclude=args.exclude,
+                          extra_rules=args.extra_rules)
     findings = dedupe(raw)
     write_baseline(findings, args.output, args.reason)
     log(f"wrote {len(findings)} suppression(s) to {args.output}; edit each 'reason' before committing")
@@ -165,6 +185,8 @@ def main(argv: list[str] | None = None) -> int:
         sp.add_argument("path", nargs="?", default=".")
         sp.add_argument("--scanners", default="semgrep,gitleaks,osv,checkov")
         sp.add_argument("--rules", default=None, help="Semgrep rules dir/file (default: bundled pack)")
+        sp.add_argument("--extra-rules", action="append", default=[],
+                        help="additional Semgrep config (repeatable)")
         sp.add_argument("--exclude", action="append", default=[],
                         help="glob of paths to ignore (repeatable), e.g. --exclude 'tests/*'")
 

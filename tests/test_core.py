@@ -252,3 +252,30 @@ class TestSarif:
     def test_file_level_finding_has_line_1(self):
         s = render_sarif([mk(line=0, category="dependency", package="p", path="package-lock.json")])
         assert s["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["region"]["startLine"] == 1
+
+
+# ---------------------------------------------------------------- sticky comment
+class TestStickyComment:
+    def _fake(self, existing):
+        calls = []
+
+        def req(method, url, token, body=None):
+            calls.append((method, url, body))
+            if method == "GET":
+                return existing
+            return {}
+        return calls, req
+
+    def test_updates_existing_comment(self, monkeypatch):
+        from shieldgate import github
+        calls, req = self._fake([{"id": 1, "body": "hi"}, {"id": 7, "body": COMMENT_MARKER + "\nold"}])
+        monkeypatch.setattr(github, "_req", req)
+        assert github.upsert_pr_comment("o/r", 5, "t", COMMENT_MARKER + "\nnew") == "updated"
+        assert calls[-1][0] == "PATCH" and calls[-1][1].endswith("/issues/comments/7")
+
+    def test_creates_when_missing(self, monkeypatch):
+        from shieldgate import github
+        calls, req = self._fake([{"id": 1, "body": "unrelated"}])
+        monkeypatch.setattr(github, "_req", req)
+        assert github.upsert_pr_comment("o/r", 5, "t", "body") == "created"
+        assert calls[-1][0] == "POST" and calls[-1][1].endswith("/issues/5/comments")

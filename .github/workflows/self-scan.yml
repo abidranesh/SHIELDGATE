@@ -1,0 +1,28 @@
+# Shieldgate scanning its own source code (dogfooding).
+name: Shieldgate self-scan
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read          # checkout
+  pull-requests: write    # create/update the single Shieldgate PR comment
+  security-events: write  # upload SARIF to code scanning
+
+jobs:
+  shieldgate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history so PR diff-scoping can find the merge base
+      - uses: ./
+        with:
+          fail-on: high
+          # deliberately vulnerable test fixtures are not product code
+          exclude: |
+            rules/*
+            tests/fixtures/*
+            demo-vulnerable-app/*
+            benchmark/*
